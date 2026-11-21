@@ -11,6 +11,7 @@ env:
   FOUNDRY_VERSION: v1.9.0
   SLITHER_VERSION: 0.11.6
   ADERYN_VERSION: 0.6.8
+  ADERYN_REV: a288420403cb1ae5f38ce606c3a6d4e605b9c81d # tag aderyn-v0.6.8
 
 jobs:
   test:
@@ -64,10 +65,12 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@dba66c27052e63476d886f22216e119ba7e615bf # v1.9.2
         with:
           version: ${{ env.FOUNDRY_VERSION }}
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-      - run: npx --yes "@cyfrin/aderyn@${ADERYN_VERSION}" . --output aderyn-report.md
+      # Aderyn is not on npm or crates.io, and the v0.6.8 release binaries were
+      # removed from GitHub, so build it from source at the tag's commit.
+      - name: Build aderyn ${{ env.ADERYN_VERSION }} from source
+        run: cargo install --locked --git https://github.com/Cyfrin/aderyn --rev "${ADERYN_REV}" aderyn
+      - run: aderyn --version
+      - run: aderyn . --output aderyn-report.md
       - name: Fail on any High finding
         run: |
           cat aderyn-report.md

@@ -68,7 +68,10 @@ jobs:
       # Aderyn is not on npm or crates.io, and the v0.6.8 release binaries were
       # removed from GitHub, so build it from source at the tag's commit.
       - name: Build aderyn ${{ env.ADERYN_VERSION }} from source
-        run: cargo install --locked --git https://github.com/Cyfrin/aderyn --rev "${ADERYN_REV}" aderyn
+        run: |
+          # The toolchain aderyn pins in its own rust-toolchain.toml at this commit.
+          rustup toolchain install nightly-2025-09-20 --profile minimal
+          cargo +nightly-2025-09-20 install --locked --git https://github.com/Cyfrin/aderyn --rev "${ADERYN_REV}" aderyn
       - run: aderyn --version
       - run: aderyn . --output aderyn-report.md
       - name: Fail on any High finding

@@ -18,7 +18,7 @@ One small token contract, and the scripts to deploy it and hand it out.
 | `src/AllianceToken.sol` | The token. About 25 lines. |
 | `script/Deploy.s.sol` | Deploys one token. Reads `NAME`, `SYMBOL`, `TREASURY` from the environment. Prints the address it expects (from the deployer's nonce) and the address it got. |
 | `script/Distribute.s.sol` | Reads a ledger CSV and writes [Safe Transaction Builder](https://help.safe.global/en/articles/40841-transaction-builder) JSON files of at most 50 transfers each. **It never signs or sends anything.** |
-| `script/lib/BuilderCode.sol` | Encodes the ERC-8021 Builder Code suffix that is appended to each transfer. |
+| `script/lib/BuilderCode.sol` | Encodes the ERC-8021 Builder Code suffix, for transactions sent directly from a hot or Ops wallet. Migration batches (Safe-executed) do not use it. |
 | `script/lib/LedgerCsv.sol` | A small CSV reader for the ledger. |
 | `test/` | Unit, fuzz and invariant tests. |
 
@@ -61,7 +61,7 @@ Without `--broadcast` it only simulates. The contract-creation transaction does 
 ## Build transfer batches
 
 1. Put the ledger at `ledger/MIGRATION-LEDGER.csv`. The `ledger/` folder is git-ignored. **Never commit it.**
-   Required columns: `old_address`, `new_address`, `balance_total`, `status`.
+   Required columns: `old_address`, `label`, `new_address`, `balance_total`, `status`.
 2. Run:
 
 ```sh
@@ -73,18 +73,18 @@ Options (environment variables):
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `INCLUDE_STATUS` | `pending` | Only rows whose `status` is exactly this |
+| `INCLUDE_STATUS` | `pending` | Only rows whose `status` is exactly this. Exact match, not a prefix: `pending: dust (<1 NCTR)` and `pending: internal` are not selected by the default. |
+| `EXCLUDE_LABELS` | `UNKNOWN` | Skip rows whose `label` is exactly one of these, separated by `\|` (labels can contain commas). The default holds back every `UNKNOWN` row, including the 20 unregistered direct-transfer wallets, until each is relabeled. Set to an empty string to skip nothing. |
 | `ALLOW_OLD_ADDRESS` | `false` | If `true`, a row with an empty `new_address` is paid to `old_address`. Otherwise such a row stops the script. |
 | `BATCH_SIZE` | `50` | 1 to 50 transfers per file |
 | `LEDGER_PATH` | `./ledger/MIGRATION-LEDGER.csv` | |
 | `OUT_DIR` | `./out-batches` | |
 | `CHAIN_ID` | `8453` (Base) | |
 
-Each output file `batch-001.json`, `batch-002.json`, … can be loaded into the Safe Transaction Builder. Every transfer's calldata is `transfer(to, amount)` followed by the ERC-8021 suffix for Builder Code `bc_90w5bpx5`.
+Each output file `batch-001.json`, `batch-002.json`, … can be loaded into the Safe Transaction Builder. Every transfer's calldata is exactly `transfer(to, amount)` (68 bytes) with **no** Builder Code suffix: these transfers are executed by the Treasury Safe, and Safe-executed transactions carry no suffix. (Inside a Safe batch a suffix would sit in the inner call; the outer `execTransaction` calldata ends with the owners' signatures, so ERC-8021 parsers would not see it anyway.)
 
 **Limits to know about:**
 - Amounts are read as decimals with up to 18 places. A ledger rounded to 6 places pays out the rounded amount.
-- The suffix sits at the end of each inner transfer call. The outer Safe transaction is built and sent by whichever owner executes it; adding the suffix to that outer transaction depends on the executing wallet.
 
 ## Static analysis
 

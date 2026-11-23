@@ -22,7 +22,9 @@ import {LedgerCsv} from "./lib/LedgerCsv.sol";
 ///                    default holds back every UNKNOWN row, including the 20 unregistered
 ///                    direct-transfer wallets (runbook R1), until each is relabeled. Set to
 ///                    an empty string to exclude nothing.
-///   ALLOW_OLD_ADDRESS default false: when true, a row with no `new_address` is sent to `old_address`
+///   ALLOW_OLD_ADDRESS default true (ruling D2: a member's existing address is the default
+///                    destination): a row with no `new_address` is sent to `old_address`.
+///                    Set to false to stop on any row that has no `new_address`.
 ///   CHAIN_ID         default 8453
 ///
 /// Every transfer's calldata is exactly `transfer(to, amount)` (68 bytes), with no
@@ -30,6 +32,10 @@ import {LedgerCsv} from "./lib/LedgerCsv.sol";
 /// Safe-executed transactions carry no suffix (relaunch ruling D1, 2026-11-20).
 contract Distribute is Script {
     uint256 internal constant MAX_BATCH = 50;
+
+    /// @notice Default for ALLOW_OLD_ADDRESS. True under ruling D2: unless a member registers a
+    /// new address, migrated NCTR goes to the address that holds the old NCTR.
+    bool public constant ALLOW_OLD_ADDRESS_DEFAULT = true;
 
     struct Transfer {
         address to;
@@ -53,7 +59,7 @@ contract Distribute is Script {
         uint256 batchSize = vm.envOr("BATCH_SIZE", MAX_BATCH);
         string memory includeStatus = vm.envOr("INCLUDE_STATUS", string("pending"));
         string memory excludeLabels = vm.envOr("EXCLUDE_LABELS", string("UNKNOWN"));
-        bool allowOld = vm.envOr("ALLOW_OLD_ADDRESS", false);
+        bool allowOld = vm.envOr("ALLOW_OLD_ADDRESS", ALLOW_OLD_ADDRESS_DEFAULT);
         uint256 chainId = vm.envOr("CHAIN_ID", uint256(8453));
         require(batchSize > 0 && batchSize <= MAX_BATCH, "BATCH_SIZE must be 1..50");
 
@@ -116,7 +122,7 @@ contract Distribute is Script {
     function _transfer(string[] memory row, Cols memory c, bool allowOld) private pure returns (Transfer memory t) {
         string memory dest = row[c.new_];
         if (bytes(dest).length == 0) {
-            require(allowOld, "row has no new_address (set ALLOW_OLD_ADDRESS=true to use old_address)");
+            require(allowOld, "row has no new_address and ALLOW_OLD_ADDRESS=false");
             dest = row[c.old_];
         }
         t.to = vm.parseAddress(dest);

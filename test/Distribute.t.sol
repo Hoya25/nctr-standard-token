@@ -43,6 +43,20 @@ contract DistributeTest is Test {
         assertEq(t[1].amount, 2e18);
     }
 
+    /// D2: the existing address is the default destination, so ALLOW_OLD_ADDRESS defaults to true.
+    function test_AllowOldAddressDefaultsToTrue() public view {
+        assertTrue(d.ALLOW_OLD_ADDRESS_DEFAULT());
+    }
+
+    /// Under the default, a row with no new_address is paid to its old_address; one with a
+    /// new_address is still paid there.
+    function test_DefaultPaysOldAddressWhenNoNewAddress() public view {
+        Distribute.Transfer[] memory t = d.buildTransfers(CSV, "pending", "UNKNOWN", d.ALLOW_OLD_ADDRESS_DEFAULT());
+        assertEq(t.length, 2);
+        assertEq(t[0].to, 0x1111111111111111111111111111111111111111);
+        assertEq(t[1].to, 0x3333333333333333333333333333333333333333);
+    }
+
     function test_RevertWhen_NoNewAddressAndOldNotAllowed() public {
         vm.expectRevert();
         d.buildTransfers(CSV, "pending", "UNKNOWN", false);

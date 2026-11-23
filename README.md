@@ -75,7 +75,7 @@ Options (environment variables):
 |---|---|---|
 | `INCLUDE_STATUS` | `pending` | Only rows whose `status` is exactly this. Exact match, not a prefix: `pending: dust (<1 NCTR)` and `pending: internal` are not selected by the default. |
 | `EXCLUDE_LABELS` | `UNKNOWN` | Skip rows whose `label` is exactly one of these, separated by `\|` (labels can contain commas). The default holds back every `UNKNOWN` row, including the 20 unregistered direct-transfer wallets, until each is relabeled. Set to an empty string to skip nothing. |
-| `ALLOW_OLD_ADDRESS` | `false` | If `true`, a row with an empty `new_address` is paid to `old_address`. Otherwise such a row stops the script. |
+| `ALLOW_OLD_ADDRESS` | `true` | A row with an empty `new_address` is paid to `old_address`: a member's existing address is the default destination unless they register a new one. Set to `false` to stop on any such row instead. |
 | `BATCH_SIZE` | `50` | 1 to 50 transfers per file |
 | `LEDGER_PATH` | `./ledger/MIGRATION-LEDGER.csv` | |
 | `OUT_DIR` | `./out-batches` | |
